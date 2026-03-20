@@ -769,29 +769,47 @@ function renderGantt(tasks, container, showWorkerLabel) {
     ctx.stroke();
   }
 
-  // Draw task bars
+  // Draw task bars (skip non-working days)
   tasks.forEach(([id, t], idx) => {
     const startCol = daysBetween(minD, t.startDate);
     const endCol = daysBetween(minD, t.endDate);
-    const x = startCol * COL_W + 2;
-    const w = (endCol - startCol + 1) * COL_W - 4;
     const y = HEADER_H + idx * ROW_H + 6;
     const h = ROW_H - 12;
     const color = getProjectColor(t.projectId);
-    // Bar
-    ctx.fillStyle = color + 'dd';
-    roundRect(ctx, x, y, w, h, 4);
-    ctx.fill();
-    // Text
     const label = getProjectName(t.projectId) + (t.description ? ' · ' + t.description : '');
-    ctx.fillStyle = '#fff';
-    ctx.font = '11px system-ui';
-    ctx.save();
-    ctx.beginPath();
-    ctx.rect(x + 4, y, w - 8, h);
-    ctx.clip();
-    ctx.fillText(label, x + 6, y + h/2 + 4);
-    ctx.restore();
+
+    // Find consecutive working-day segments and draw each as a separate bar
+    let segStart = null, segEnd = null, firstSeg = null;
+    const drawSeg = (s, e) => {
+      const sx = s * COL_W + 2;
+      const sw = (e - s + 1) * COL_W - 4;
+      ctx.fillStyle = color + 'dd';
+      roundRect(ctx, sx, y, sw, h, 4);
+      ctx.fill();
+      if (!firstSeg) firstSeg = { sx, sw };
+    };
+    for (let col = startCol; col <= endCol; col++) {
+      const dateStr = addDays(minD, col);
+      if (!isNonWorkingDay(dateStr)) {
+        if (segStart === null) segStart = col;
+        segEnd = col;
+      } else {
+        if (segStart !== null) { drawSeg(segStart, segEnd); segStart = null; segEnd = null; }
+      }
+    }
+    if (segStart !== null) drawSeg(segStart, segEnd);
+
+    // Draw label on first working-day segment
+    if (firstSeg) {
+      ctx.fillStyle = '#fff';
+      ctx.font = '11px system-ui';
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(firstSeg.sx + 4, y, firstSeg.sw - 8, h);
+      ctx.clip();
+      ctx.fillText(label, firstSeg.sx + 6, y + h/2 + 4);
+      ctx.restore();
+    }
   });
 
   // Today line
