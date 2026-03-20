@@ -576,6 +576,7 @@ function renderTaskTable() {
       await dbDeleteTask(btn.dataset.id);
       showToast('삭제되었습니다');
       await fetchAllData();
+      renderTaskTable();
       renderGantt();
     });
   });
@@ -625,6 +626,7 @@ function openTaskModal(editId) {
       showToast('추가되었습니다');
     }
     await fetchAllData();
+    renderTaskTable();
     renderGantt();
     return true;
   });
