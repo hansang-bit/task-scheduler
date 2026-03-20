@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>일정 관리</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #f5f5f4; --surface: #ffffff; --text: #1a1a1a; --text2: #6b7280;
+  --border: #e5e7eb; --accent: #2563eb; --accent-hover: #1d4ed8;
+  --danger: #dc2626; --danger-hover: #b91c1c;
+  --holiday-bg: #fef2f2; --today-line: #ef4444;
+  --radius: 6px; --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+body { font-family: var(--font); background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5; min-height: 100vh; }
+#app { min-height: 100vh; }
+button { font-family: var(--font); cursor: pointer; border: none; background: none; font-size: 14px; }
+input, select, textarea { font-family: var(--font); font-size: 14px; }
+.btn { padding: 8px 16px; border-radius: var(--radius); font-weight: 500; transition: background 0.15s; }
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: var(--danger-hover); }
+.btn-ghost { color: var(--text2); border: 1px solid var(--border); background: var(--surface); }
+.btn-ghost:hover { background: var(--bg); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-icon { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: var(--radius); color: var(--text2); }
+.btn-icon:hover { background: var(--bg); }
+
+/* Nav */
+.nav { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.nav-left { display: flex; align-items: center; gap: 16px; }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.nav-title { font-size: 16px; font-weight: 600; color: var(--text); }
+.nav-user { color: var(--text2); font-size: 13px; }
+.nav-link { color: var(--accent); font-size: 13px; text-decoration: none; cursor: pointer; }
+.nav-link:hover { text-decoration: underline; }
+
+/* Login */
+.login-wrap { display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+.login-card { background: var(--surface); border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.08); padding: 48px 40px; width: 360px; text-align: center; }
+.login-card h1 { font-size: 22px; font-weight: 600; margin-bottom: 8px; }
+.login-card p { color: var(--text2); font-size: 13px; margin-bottom: 32px; }
+.login-card select { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 16px; background: var(--surface); appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%236b7280' d='M6 8L1 3h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; }
+.login-card .btn { width: 100%; }
+
+/* Layout */
+.page-content { display: flex; height: calc(100vh - 49px); overflow: hidden; }
+.panel-left { width: 420px; min-width: 320px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--surface); }
+.panel-right { flex: 1; overflow: auto; background: var(--bg); padding: 16px; }
+.panel-header { display: flex; align-items: center; justify-content: space-between; padding: 16px; border-bottom: 1px solid var(--border); }
+.panel-header h2 { font-size: 15px; font-weight: 600; }
+
+/* Table */
+.task-table-wrap { flex: 1; overflow: auto; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); font-size: 13px; white-space: nowrap; }
+th { background: var(--bg); font-weight: 500; color: var(--text2); position: sticky; top: 0; z-index: 1; }
+tr:hover td { background: #f9fafb; }
+.color-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.task-desc { max-width: 120px; overflow: hidden; text-overflow: ellipsis; }
+.no-data { padding: 48px 24px; text-align: center; color: var(--text2); font-size: 13px; }
+
+/* Modal */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.modal { background: var(--surface); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 24px; width: 400px; max-width: 90vw; }
+.modal h3 { font-size: 16px; font-weight: 600; margin-bottom: 20px; }
+.form-group { margin-bottom: 16px; }
+.form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--text2); margin-bottom: 4px; }
+.form-group input, .form-group select, .form-group textarea { width: 100%; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.form-group textarea { resize: vertical; min-height: 60px; }
+.form-row { display: flex; gap: 12px; }
+.form-row .form-group { flex: 1; }
+.form-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+.working-days-display { font-size: 13px; color: var(--accent); font-weight: 500; padding: 8px 0; }
+
+/* Admin Tabs */
+.tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--surface); padding: 0 24px; }
+.tab { padding: 12px 20px; font-size: 14px; font-weight: 500; color: var(--text2); border-bottom: 2px solid transparent; cursor: pointer; transition: color 0.15s; }
+.tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.tab:hover { color: var(--text); }
+.admin-content { padding: 24px; overflow: auto; height: calc(100vh - 49px - 47px); }
+.admin-section { max-width: 900px; }
+.admin-list { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); }
+.admin-list-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); }
+.admin-list-item:last-child { border-bottom: none; }
+.admin-list-item.inactive { opacity: 0.5; }
+.admin-list-item .name { font-size: 14px; flex: 1; }
+.admin-list-item .actions { display: flex; gap: 4px; }
+.admin-add { display: flex; gap: 8px; margin-bottom: 16px; }
+.admin-add input { flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); }
+
+/* Filters */
+.filter-bar { display: flex; gap: 12px; margin-bottom: 16px; align-items: center; }
+.filter-bar select { padding: 8px 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.filter-bar label { font-size: 13px; color: var(--text2); }
+
+/* Gantt Container */
+.gantt-wrap { background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); overflow: auto; position: relative; }
+.gantt-wrap canvas { display: block; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: #fff; padding: 10px 20px; border-radius: var(--radius); font-size: 13px; z-index: 200; animation: toastIn 0.2s; }
+@keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Confirm Dialog */
+.confirm-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; z-index: 150; }
+.confirm-box { background: var(--surface); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.12); padding: 24px; width: 340px; text-align: center; }
+.confirm-box p { margin-bottom: 20px; font-size: 14px; }
+.confirm-box .form-actions { justify-content: center; }
+
+/* Loading */
+.loading { display: flex; align-items: center; justify-content: center; height: 200px; color: var(--text2); }
+
+/* Edit inline */
+.edit-inline { display: flex; gap: 4px; align-items: center; }
+.edit-inline input { padding: 4px 8px; border: 1px solid var(--accent); border-radius: 4px; font-size: 13px; width: 140px; }
+</style>
+</head>
+<body>
+<div id="app"><div class="loading">로딩 중...</div></div>
+
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+// ==================== SUPABASE CONFIG ====================
+// ⚠️ 아래 값을 Supabase 프로젝트 설정 → API 탭에서 복사한 값으로 교체하세요
+const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+const SUPABASE_KEY = 'YOUR_SUPABASE_ANON_KEY';
+
+let supabase = null;
+let dbReady = false;
+const configValid = SUPABASE_URL && !SUPABASE_URL.startsWith('YOUR_');
+if (configValid) {
+  try {
+    supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+    dbReady = true;
+  } catch (e) {
+    console.error('Supabase init failed:', e);
+  }
+}
+
+// ==================== CONSTANTS ====================
+const DEFAULT_WORKERS = [
+  '박장수','박길우','주수미','이혜명','이은지','김태균','박건환','송지은',
+  '박채영','조한상','Dave','문경빈','장서영','김정현','이윤서','김용운',
+  '최혜진','정선진','강주언','이예림'
+];
+const DEFAULT_PROJECTS = [
+  '공통','토도영어','토도영어 아카데미','토도수학','토도한글','토도스쿨',
+  '토도원','특교 콘텐츠','특교 플랫폼','에누마스쿨','AIDT','휴가'
+];
+const PROJECT_COLORS = [
+  '#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#ec4899',
+  '#06b6d4','#84cc16','#f97316','#6366f1','#14b8a6','#d946ef'
+];
+const ADMIN_NAME = '조한상';
+
+// Korean Holidays 2025-2026 (includes substitute holidays)
+const HOLIDAYS = {
+  2025: [
+    '2025-01-01','2025-01-28','2025-01-29','2025-01-30',
+    '2025-03-01','2025-03-03',
+    '2025-05-05','2025-05-06','2025-06-06',
+    '2025-08-15',
+    '2025-10-03','2025-10-05','2025-10-06','2025-10-07','2025-10-08','2025-10-09',
+    '2025-12-25'
+  ],
+  2026: [
+    '2026-01-01','2026-02-16','2026-02-17','2026-02-18',
+    '2026-03-01','2026-03-02',
+    '2026-05-05','2026-05-24','2026-06-06',
+    '2026-08-15','2026-08-17',
+    '2026-09-24','2026-09-25','2026-09-26',
+    '2026-10-03','2026-10-05','2026-10-09',
+    '2026-12-25'
+  ]
+};
+const holidaySet = new Set([...(HOLIDAYS[2025]||[]), ...(HOLIDAYS[2026]||[])]);
+
+// ==================== DATE UTILITIES ====================
+function parseDate(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+function formatDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth()+1).padStart(2,'0');
+  const d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
+}
+function isNonWorkingDay(dateStr) {
+  const d = parseDate(dateStr);
+  const day = d.getDay();
+  if (day === 0 || day === 6) return true;
+  return holidaySet.has(dateStr);
+}
+function countWorkingDays(startStr, endStr) {
+  let count = 0;
+  let cur = parseDate(startStr);
+  const end = parseDate(endStr);
+  while (cur <= end) {
+    if (!isNonWorkingDay(formatDateStr(cur))) count++;
+    cur.setDate(cur.getDate() + 1);
+  }
+  return count;
+}
+function todayStr() { return formatDateStr(new Date()); }
+function addDays(dateStr, n) {
+  const d = parseDate(dateStr);
+  d.setDate(d.getDate() + n);
+  return formatDateStr(d);
+}
+function daysBetween(a, b) {
+  return Math.round((parseDate(b) - parseDate(a)) / 86400000);
+}
+
+// ==================== DATA LAYER ====================
+let DATA = { workers: {}, projects: {}, tasks: {} };
+let dataListeners = [];
+
+function getCurrentUser() { return localStorage.getItem('taskSchedulerCurrentUser'); }
+function setCurrentUser(id) { localStorage.setItem('taskSchedulerCurrentUser', id); }
+function clearCurrentUser() { localStorage.removeItem('taskSchedulerCurrentUser'); }
+
+function isAdmin() {
+  const uid = getCurrentUser();
+  if (!uid || !DATA.workers[uid]) return false;
+  return DATA.workers[uid].name === ADMIN_NAME;
+}
+
+function getWorkerName(id) { return DATA.workers[id]?.name || '(알 수 없음)'; }
+function getProjectName(id) { return DATA.projects[id]?.name || '(알 수 없음)'; }
+function getProjectColor(projectId) {
+  const keys = Object.keys(DATA.projects);
+  const idx = keys.indexOf(projectId);
+  if (idx < 0) return '#9ca3af';
+  const proj = DATA.projects[projectId];
+  if (proj && proj.name === '휴가') return '#9ca3af';
+  return PROJECT_COLORS[idx % PROJECT_COLORS.length];
+}
+
+function getDefaultData() {
+  const workers = {};
+  DEFAULT_WORKERS.forEach((name, i) => { workers['w' + i] = { name, active: true }; });
+  const projects = {};
+  DEFAULT_PROJECTS.forEach((name, i) => { projects['p' + i] = { name, active: true }; });
+  return { workers, projects, tasks: {} };
+}
+
+// --- localStorage fallback for offline / no Supabase ---
+function lsLoad() {
+  try {
+    const raw = localStorage.getItem('taskSchedulerData');
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+}
+function lsSave() {
+  localStorage.setItem('taskSchedulerData', JSON.stringify({ workers: DATA.workers, projects: DATA.projects, tasks: DATA.tasks }));
+}
+function lsNotify() { lsSave(); router(); }
+
+// --- Supabase ↔ DATA 동기화 ---
+function rowsToMap(rows) {
+  const m = {};
+  (rows || []).forEach(r => { const { id, ...rest } = r; m[id] = rest; });
+  return m;
+}
+// tasks 테이블의 snake_case를 camelCase로 변환
+function taskRowToObj(r) {
+  return { workerId: r.worker_id, projectId: r.project_id, description: r.description, startDate: r.start_date, endDate: r.end_date, workingDays: r.working_days };
+}
+function taskRowsToMap(rows) {
+  const m = {};
+  (rows || []).forEach(r => { m[r.id] = taskRowToObj(r); });
+  return m;
+}
+
+async function fetchAllData() {
+  const [w, p, t] = await Promise.all([
+    supabase.from('workers').select('*'),
+    supabase.from('projects').select('*'),
+    supabase.from('tasks').select('*')
+  ]);
+  DATA.workers = rowsToMap(w.data);
+  DATA.projects = rowsToMap(p.data);
+  DATA.tasks = taskRowsToMap(t.data);
+}
+
+async function initializeData() {
+  if (dbReady) {
+    const { data: existing } = await supabase.from('workers').select('id').limit(1);
+    if (!existing || existing.length === 0) {
+      // Seed default data
+      const wRows = DEFAULT_WORKERS.map((name, i) => ({ id: 'w' + i, name, active: true }));
+      const pRows = DEFAULT_PROJECTS.map((name, i) => ({ id: 'p' + i, name, active: true }));
+      await supabase.from('workers').insert(wRows);
+      await supabase.from('projects').insert(pRows);
+    }
+    await fetchAllData();
+  } else {
+    const saved = lsLoad();
+    if (saved) {
+      DATA.workers = saved.workers || {};
+      DATA.projects = saved.projects || {};
+      DATA.tasks = saved.tasks || {};
+    } else {
+      const def = getDefaultData();
+      DATA.workers = def.workers;
+      DATA.projects = def.projects;
+      DATA.tasks = def.tasks;
+      lsSave();
+    }
+  }
+}
+
+function listenData(callback) {
+  callback(); // 초기 렌더링
+  if (dbReady) {
+    // Supabase Realtime 구독 (변경 시 전체 새로고침)
+    supabase.channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'workers' }, async () => { await fetchAllData(); callback(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, async () => { await fetchAllData(); callback(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => { await fetchAllData(); callback(); })
+      .subscribe();
+  }
+}
+
+// --- DB CRUD 함수들 (Supabase / localStorage 통합) ---
+async function dbUpsertWorker(id, val) {
+  if (dbReady) {
+    await supabase.from('workers').upsert({ id, ...val });
+  } else {
+    DATA.workers[id] = { ...(DATA.workers[id]||{}), ...val };
+    lsNotify();
+  }
+}
+async function dbDeleteWorker(id) {
+  if (dbReady) {
+    await supabase.from('workers').delete().eq('id', id);
+  } else {
+    delete DATA.workers[id];
+    lsNotify();
+  }
+}
+async function dbInsertWorker(val) {
+  const id = 'w_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  if (dbReady) {
+    await supabase.from('workers').insert({ id, ...val });
+  } else {
+    DATA.workers[id] = val;
+    lsNotify();
+  }
+  return id;
+}
+
+async function dbUpsertProject(id, val) {
+  if (dbReady) {
+    await supabase.from('projects').upsert({ id, ...val });
+  } else {
+    DATA.projects[id] = { ...(DATA.projects[id]||{}), ...val };
+    lsNotify();
+  }
+}
+async function dbDeleteProject(id) {
+  if (dbReady) {
+    await supabase.from('projects').delete().eq('id', id);
+  } else {
+    delete DATA.projects[id];
+    lsNotify();
+  }
+}
+async function dbInsertProject(val) {
+  const id = 'p_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  if (dbReady) {
+    await supabase.from('projects').insert({ id, ...val });
+  } else {
+    DATA.projects[id] = val;
+    lsNotify();
+  }
+  return id;
+}
+
+async function dbUpsertTask(id, val) {
+  if (dbReady) {
+    await supabase.from('tasks').upsert({
+      id,
+      worker_id: val.workerId, project_id: val.projectId,
+      description: val.description, start_date: val.startDate,
+      end_date: val.endDate, working_days: val.workingDays
+    });
+  } else {
+    DATA.tasks[id] = { ...(DATA.tasks[id]||{}), ...val };
+    lsNotify();
+  }
+}
+async function dbDeleteTask(id) {
+  if (dbReady) {
+    await supabase.from('tasks').delete().eq('id', id);
+  } else {
+    delete DATA.tasks[id];
+    lsNotify();
+  }
+}
+async function dbInsertTask(val) {
+  const id = 't_' + Date.now() + '_' + Math.random().toString(36).slice(2,6);
+  if (dbReady) {
+    await supabase.from('tasks').insert({
+      id,
+      worker_id: val.workerId, project_id: val.projectId,
+      description: val.description, start_date: val.startDate,
+      end_date: val.endDate, working_days: val.workingDays
+    });
+  } else {
+    DATA.tasks[id] = val;
+    lsNotify();
+  }
+  return id;
+}
+
+// ==================== ROUTER ====================
+function router() {
+  const hash = location.hash || '#login';
+  const uid = getCurrentUser();
+  if (hash === '#login') { renderLogin(); return; }
+  if (!uid || !DATA.workers[uid]) { location.hash = '#login'; return; }
+  if (hash === '#admin') {
+    if (!isAdmin()) { location.hash = '#worker'; return; }
+    renderAdmin();
+  } else {
+    renderWorker();
+  }
+}
+
+// ==================== UI HELPERS ====================
+function $(sel, el) { return (el||document).querySelector(sel); }
+function $$(sel, el) { return [...(el||document).querySelectorAll(sel)]; }
+
+function showToast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+function showConfirm(msg, onYes) {
+  const overlay = document.createElement('div');
+  overlay.className = 'confirm-overlay';
+  overlay.innerHTML = `<div class="confirm-box"><p>${msg}</p><div class="form-actions"><button class="btn btn-ghost" id="cfNo">취소</button><button class="btn btn-danger" id="cfYes">확인</button></div></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#cfNo').onclick = () => overlay.remove();
+  overlay.querySelector('#cfYes').onclick = () => { overlay.remove(); onYes(); };
+}
+
+function showModal(title, contentHTML, onSave) {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML = `<div class="modal"><h3>${title}</h3><div class="modal-body">${contentHTML}</div><div class="form-actions"><button class="btn btn-ghost modal-cancel">취소</button><button class="btn btn-primary modal-save">저장</button></div></div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.modal-cancel').onclick = () => overlay.remove();
+  overlay.querySelector('.modal-save').onclick = () => {
+    if (onSave(overlay)) overlay.remove();
+  };
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  return overlay;
+}
+
+// ==================== LOGIN PAGE ====================
+function renderLogin() {
+  const appEl = document.getElementById('app');
+  const activeWorkers = Object.entries(DATA.workers).filter(([,w]) => w.active).sort((a,b) => a[1].name.localeCompare(b[1].name, 'ko'));
+  appEl.innerHTML = `
+    <div class="login-wrap">
+      <div class="login-card">
+        <h1>일정 관리</h1>
+        <p>이름을 선택하여 시작하세요</p>
+        <select id="loginSelect">
+          <option value="">이름 선택...</option>
+          ${activeWorkers.map(([id,w]) => `<option value="${id}">${w.name}</option>`).join('')}
+        </select>
+        <button class="btn btn-primary" id="loginBtn">입장</button>
+      </div>
+    </div>`;
+  $('#loginBtn').onclick = () => {
+    const val = $('#loginSelect').value;
+    if (!val) { showToast('이름을 선택하세요'); return; }
+    setCurrentUser(val);
+    location.hash = '#worker';
+  };
+}
+
+// ==================== WORKER PAGE ====================
+function renderWorker() {
+  const uid = getCurrentUser();
+  const worker = DATA.workers[uid];
+  if (!worker) { location.hash = '#login'; return; }
+  const appEl = document.getElementById('app');
+  appEl.innerHTML = `
+    <div class="nav">
+      <div class="nav-left">
+        <span class="nav-title">일정 관리</span>
+      </div>
+      <div class="nav-right">
+        <span class="nav-user">${worker.name}</span>
+        ${isAdmin() ? '<a class="nav-link" href="#admin">관리자</a>' : ''}
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">로그아웃</button>
+      </div>
+    </div>
+    <div class="page-content">
+      <div class="panel-left">
+        <div class="panel-header">
+          <h2>내 작업 목록</h2>
+          <button class="btn btn-primary btn-sm" id="addTaskBtn">+ 추가</button>
+        </div>
+        <div class="task-table-wrap" id="taskTableWrap"></div>
+      </div>
+      <div class="panel-right">
+        <div class="gantt-wrap" id="ganttWrap"></div>
+      </div>
+    </div>`;
+  $('#logoutBtn').onclick = () => { clearCurrentUser(); location.hash = '#login'; };
+  $('#addTaskBtn').onclick = () => openTaskModal();
+  renderTaskTable();
+  renderGantt();
+}
+
+function getMyTasks() {
+  const uid = getCurrentUser();
+  return Object.entries(DATA.tasks)
+    .filter(([,t]) => t.workerId === uid)
+    .sort((a,b) => (a[1].startDate || '').localeCompare(b[1].startDate || ''));
+}
+
+function renderTaskTable() {
+  const wrap = document.getElementById('taskTableWrap');
+  if (!wrap) return;
+  const tasks = getMyTasks();
+  if (tasks.length === 0) {
+    wrap.innerHTML = '<div class="no-data">작업이 없습니다. + 추가 버튼으로 일감을 추가하세요.</div>';
+    return;
+  }
+  wrap.innerHTML = `<table><thead><tr><th>프로젝트</th><th>일감</th><th>시작일</th><th>종료일</th><th>근무일</th><th></th></tr></thead><tbody>${
+    tasks.map(([id,t]) => {
+      const pColor = getProjectColor(t.projectId);
+      return `<tr>
+        <td><span class="color-dot" style="background:${pColor}"></span>${getProjectName(t.projectId)}</td>
+        <td class="task-desc" title="${t.description||''}">${t.description||'-'}</td>
+        <td>${t.startDate||''}</td>
+        <td>${t.endDate||''}</td>
+        <td>${t.workingDays||0}</td>
+        <td>
+          <button class="btn-icon edit-task" data-id="${id}" title="수정">&#9998;</button>
+          <button class="btn-icon del-task" data-id="${id}" title="삭제">&#128465;</button>
+        </td>
+      </tr>`;
+    }).join('')
+  }</tbody></table>`;
+  wrap.querySelectorAll('.edit-task').forEach(btn => {
+    btn.onclick = () => openTaskModal(btn.dataset.id);
+  });
+  wrap.querySelectorAll('.del-task').forEach(btn => {
+    btn.onclick = () => showConfirm('이 작업을 삭제하시겠습니까?', async () => {
+      await dbDeleteTask(btn.dataset.id);
+      showToast('삭제되었습니다');
+    });
+  });
+}
+
+function openTaskModal(editId) {
+  const task = editId ? DATA.tasks[editId] : null;
+  const activeProjects = Object.entries(DATA.projects).filter(([,p]) => p.active);
+  const today = todayStr();
+  const html = `
+    <div class="form-group">
+      <label>프로젝트</label>
+      <select id="mProject">
+        ${activeProjects.map(([id,p]) => `<option value="${id}" ${task&&task.projectId===id?'selected':''}>${p.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>일감 설명</label>
+      <textarea id="mDesc">${task?task.description:''}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>시작일</label>
+        <input type="date" id="mStart" value="${task?task.startDate:today}">
+      </div>
+      <div class="form-group">
+        <label>종료일</label>
+        <input type="date" id="mEnd" value="${task?task.endDate:today}">
+      </div>
+    </div>
+    <div class="working-days-display" id="mWorkDays">근무일수: ${task ? task.workingDays : 1}일</div>`;
+  const overlay = showModal(editId ? '작업 수정' : '작업 추가', html, async (modal) => {
+    const projectId = modal.querySelector('#mProject').value;
+    const description = modal.querySelector('#mDesc').value.trim();
+    const startDate = modal.querySelector('#mStart').value;
+    const endDate = modal.querySelector('#mEnd').value;
+    if (!description) { showToast('일감 설명을 입력하세요'); return false; }
+    if (!startDate || !endDate) { showToast('날짜를 선택하세요'); return false; }
+    if (startDate > endDate) { showToast('종료일이 시작일보다 빠릅니다'); return false; }
+    const workingDays = countWorkingDays(startDate, endDate);
+    const data = { projectId, description, startDate, endDate, workingDays, workerId: getCurrentUser() };
+    if (editId) {
+      await dbUpsertTask(editId, data);
+      showToast('수정되었습니다');
+    } else {
+      await dbInsertTask(data);
+      showToast('추가되었습니다');
+    }
+    return true;
+  });
+  const updateWD = () => {
+    const s = overlay.querySelector('#mStart').value;
+    const e = overlay.querySelector('#mEnd').value;
+    if (s && e && s <= e) {
+      overlay.querySelector('#mWorkDays').textContent = `근무일수: ${countWorkingDays(s,e)}일`;
+    }
+  };
+  overlay.querySelector('#mStart').onchange = updateWD;
+  overlay.querySelector('#mEnd').onchange = updateWD;
+}
+
+// ==================== GANTT CHART ====================
+const COL_W = 32;
+const ROW_H = 36;
+const HEADER_H = 50;
+const LABEL_W = 0;
+
+function renderGantt(tasks, container, showWorkerLabel) {
+  if (!container) container = document.getElementById('ganttWrap');
+  if (!container) return;
+  if (!tasks) tasks = getMyTasks();
+  if (tasks.length === 0) {
+    container.innerHTML = '<div class="no-data" style="padding:40px">일정이 없습니다</div>';
+    return;
+  }
+  // Calculate date range
+  let minD = tasks[0][1].startDate, maxD = tasks[0][1].endDate;
+  tasks.forEach(([,t]) => {
+    if (t.startDate < minD) minD = t.startDate;
+    if (t.endDate > maxD) maxD = t.endDate;
+  });
+  // Pad range
+  minD = addDays(minD, -3);
+  maxD = addDays(maxD, 7);
+  const totalDays = daysBetween(minD, maxD) + 1;
+  const labelW = showWorkerLabel ? 80 : 0;
+  const canvasW = totalDays * COL_W;
+  const canvasH = HEADER_H + tasks.length * ROW_H;
+  const dpr = window.devicePixelRatio || 1;
+
+  container.innerHTML = '';
+
+  // Build layout: fixed label column + scrollable canvas
+  if (showWorkerLabel) {
+    container.style.display = 'flex';
+    container.style.alignItems = 'stretch';
+    // Fixed label column
+    const labelCol = document.createElement('div');
+    labelCol.style.cssText = `width:${labelW}px;min-width:${labelW}px;background:#f9fafb;border-right:1px solid #e5e7eb;flex-shrink:0;`;
+    // Empty header spacer
+    const spacer = document.createElement('div');
+    spacer.style.cssText = `height:${HEADER_H}px;border-bottom:1px solid #e5e7eb;`;
+    labelCol.appendChild(spacer);
+    // Worker name rows
+    tasks.forEach(([,t], idx) => {
+      const row = document.createElement('div');
+      row.style.cssText = `height:${ROW_H}px;display:flex;align-items:center;padding:0 6px;font-size:11px;color:#374151;border-bottom:1px solid #f0f0f0;white-space:nowrap;overflow:hidden;`;
+      row.textContent = getWorkerName(t.workerId);
+      labelCol.appendChild(row);
+    });
+    container.appendChild(labelCol);
+  } else {
+    container.style.display = '';
+  }
+
+  // Scrollable chart area
+  const scrollWrap = document.createElement('div');
+  scrollWrap.style.cssText = 'flex:1;overflow-x:auto;overflow-y:hidden;';
+  const canvas = document.createElement('canvas');
+  canvas.style.width = canvasW + 'px';
+  canvas.style.height = canvasH + 'px';
+  canvas.width = canvasW * dpr;
+  canvas.height = canvasH * dpr;
+  scrollWrap.appendChild(canvas);
+  container.appendChild(scrollWrap);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+
+  // Draw background
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Draw day columns
+  for (let i = 0; i < totalDays; i++) {
+    const dateStr = addDays(minD, i);
+    const x = i * COL_W;
+    const d = parseDate(dateStr);
+    if (isNonWorkingDay(dateStr)) {
+      ctx.fillStyle = 'rgba(254,202,202,0.18)';
+      ctx.fillRect(x, 0, COL_W, canvasH);
+    }
+    // Vertical grid
+    ctx.strokeStyle = '#f0f0f0';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(x, HEADER_H);
+    ctx.lineTo(x, canvasH);
+    ctx.stroke();
+    // Month boundary
+    if (d.getDate() === 1) {
+      ctx.strokeStyle = '#d1d5db';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvasH);
+      ctx.stroke();
+    }
+  }
+
+  // Draw header
+  ctx.fillStyle = '#f9fafb';
+  ctx.fillRect(0, 0, canvasW, HEADER_H);
+  ctx.strokeStyle = var_border();
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, HEADER_H);
+  ctx.lineTo(canvasW, HEADER_H);
+  ctx.stroke();
+
+  let lastMonth = '';
+  for (let i = 0; i < totalDays; i++) {
+    const dateStr = addDays(minD, i);
+    const d = parseDate(dateStr);
+    const x = i * COL_W;
+    const month = `${d.getFullYear()}.${d.getMonth()+1}월`;
+    if (month !== lastMonth) {
+      ctx.fillStyle = '#374151';
+      ctx.font = '11px system-ui';
+      ctx.fillText(month, x + 2, 14);
+      lastMonth = month;
+    }
+    // Day number
+    const day = d.getDate();
+    const dow = d.getDay();
+    ctx.font = '11px system-ui';
+    ctx.fillStyle = dow === 0 ? '#dc2626' : dow === 6 ? '#2563eb' : '#6b7280';
+    ctx.textAlign = 'center';
+    ctx.fillText(day, x + COL_W/2, 32);
+    const dowNames = ['일','월','화','수','목','금','토'];
+    ctx.font = '9px system-ui';
+    ctx.fillText(dowNames[dow], x + COL_W/2, 44);
+    ctx.textAlign = 'left';
+  }
+
+  // Draw row separators
+  for (let r = 0; r <= tasks.length; r++) {
+    const y = HEADER_H + r * ROW_H;
+    ctx.strokeStyle = '#f0f0f0';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(canvasW, y);
+    ctx.stroke();
+  }
+
+  // Draw task bars
+  tasks.forEach(([id, t], idx) => {
+    const startCol = daysBetween(minD, t.startDate);
+    const endCol = daysBetween(minD, t.endDate);
+    const x = startCol * COL_W + 2;
+    const w = (endCol - startCol + 1) * COL_W - 4;
+    const y = HEADER_H + idx * ROW_H + 6;
+    const h = ROW_H - 12;
+    const color = getProjectColor(t.projectId);
+    // Bar
+    ctx.fillStyle = color + 'dd';
+    roundRect(ctx, x, y, w, h, 4);
+    ctx.fill();
+    // Text
+    const label = getProjectName(t.projectId) + (t.description ? ' · ' + t.description : '');
+    ctx.fillStyle = '#fff';
+    ctx.font = '11px system-ui';
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x + 4, y, w - 8, h);
+    ctx.clip();
+    ctx.fillText(label, x + 6, y + h/2 + 4);
+    ctx.restore();
+  });
+
+  // Today line
+  const todayCol = daysBetween(minD, todayStr());
+  if (todayCol >= 0 && todayCol < totalDays) {
+    const x = todayCol * COL_W + COL_W/2;
+    ctx.strokeStyle = '#ef4444';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([4, 3]);
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, canvasH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Click handler
+  canvas.onclick = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const my = (e.clientY - rect.top);
+    const row = Math.floor((my - HEADER_H) / ROW_H);
+    if (row >= 0 && row < tasks.length) {
+      openTaskModal(tasks[row][0]);
+    }
+  };
+  // Cursor
+  canvas.onmousemove = (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const my = (e.clientY - rect.top);
+    const row = Math.floor((my - HEADER_H) / ROW_H);
+    canvas.style.cursor = (row >= 0 && row < tasks.length) ? 'pointer' : 'default';
+  };
+}
+
+function var_border() { return '#e5e7eb'; }
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+
+// ==================== ADMIN PAGE ====================
+let adminTab = 'schedules';
+
+function renderAdmin() {
+  const appEl = document.getElementById('app');
+  const uid = getCurrentUser();
+  appEl.innerHTML = `
+    <div class="nav">
+      <div class="nav-left">
+        <span class="nav-title">관리자</span>
+      </div>
+      <div class="nav-right">
+        <a class="nav-link" href="#worker">내 일정</a>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">로그아웃</button>
+      </div>
+    </div>
+    <div class="tabs">
+      <div class="tab ${adminTab==='schedules'?'active':''}" data-tab="schedules">전체 일정</div>
+      <div class="tab ${adminTab==='workers'?'active':''}" data-tab="workers">작업자 관리</div>
+      <div class="tab ${adminTab==='projects'?'active':''}" data-tab="projects">프로젝트 관리</div>
+    </div>
+    <div class="admin-content" id="adminContent"></div>`;
+  $('#logoutBtn').onclick = () => { clearCurrentUser(); location.hash = '#login'; };
+  $$('.tab').forEach(tab => {
+    tab.onclick = () => {
+      adminTab = tab.dataset.tab;
+      renderAdmin();
+    };
+  });
+  if (adminTab === 'workers') renderAdminWorkers();
+  else if (adminTab === 'projects') renderAdminProjects();
+  else renderAdminSchedules();
+}
+
+function renderAdminWorkers() {
+  const wrap = $('#adminContent');
+  const workers = Object.entries(DATA.workers).sort((a,b) => {
+    if (a[1].active !== b[1].active) return a[1].active ? -1 : 1;
+    return a[1].name.localeCompare(b[1].name, 'ko');
+  });
+  wrap.innerHTML = `
+    <div class="admin-section">
+      <div class="admin-add">
+        <input id="newWorkerName" placeholder="새 작업자 이름" />
+        <button class="btn btn-primary btn-sm" id="addWorkerBtn">추가</button>
+      </div>
+      <div class="admin-list" id="workerList">
+        ${workers.map(([id,w]) => `
+          <div class="admin-list-item ${w.active?'':'inactive'}">
+            <span class="name" id="wname-${id}">${w.name}</span>
+            <div class="actions">
+              <button class="btn-icon edit-w" data-id="${id}" title="이름 수정">&#9998;</button>
+              <button class="btn-icon toggle-w" data-id="${id}" title="${w.active?'비활성화':'활성화'}">${w.active?'🚫':'✅'}</button>
+              <button class="btn-icon del-w" data-id="${id}" title="삭제">&#128465;</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  $('#addWorkerBtn').onclick = async () => {
+    const name = $('#newWorkerName').value.trim();
+    if (!name) return;
+    const exists = Object.values(DATA.workers).some(w => w.name === name);
+    if (exists) { showToast('이미 존재하는 이름입니다'); return; }
+    await dbInsertWorker({ name, active: true });
+    showToast('추가되었습니다');
+  };
+  $$('.edit-w').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      const nameEl = $(`#wname-${id}`);
+      const cur = DATA.workers[id].name;
+      nameEl.innerHTML = `<div class="edit-inline"><input value="${cur}" id="editW-${id}"><button class="btn btn-primary btn-sm" id="saveW-${id}">저장</button></div>`;
+      $(`#saveW-${id}`).onclick = async () => {
+        const newName = $(`#editW-${id}`).value.trim();
+        if (!newName) return;
+        await dbUpsertWorker(id, { ...DATA.workers[id], name: newName });
+        showToast('수정되었습니다');
+      };
+    };
+  });
+  $$('.toggle-w').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      await dbUpsertWorker(id, { ...DATA.workers[id], active: !DATA.workers[id].active });
+    };
+  });
+  $$('.del-w').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      const hasTasks = Object.values(DATA.tasks).some(t => t.workerId === id);
+      if (hasTasks) {
+        showConfirm('이 작업자에게 할당된 작업이 있습니다. 비활성화하시겠습니까?', async () => {
+          await dbUpsertWorker(id, { ...DATA.workers[id], active: false });
+        });
+      } else {
+        showConfirm('삭제하시겠습니까?', async () => {
+          await dbDeleteWorker(id);
+          showToast('삭제되었습니다');
+        });
+      }
+    };
+  });
+}
+
+function renderAdminProjects() {
+  const wrap = $('#adminContent');
+  const projects = Object.entries(DATA.projects).sort((a,b) => {
+    if (a[1].active !== b[1].active) return a[1].active ? -1 : 1;
+    return a[1].name.localeCompare(b[1].name, 'ko');
+  });
+  wrap.innerHTML = `
+    <div class="admin-section">
+      <div class="admin-add">
+        <input id="newProjName" placeholder="새 프로젝트 이름" />
+        <button class="btn btn-primary btn-sm" id="addProjBtn">추가</button>
+      </div>
+      <div class="admin-list" id="projList">
+        ${projects.map(([id,p]) => `
+          <div class="admin-list-item ${p.active?'':'inactive'}">
+            <span class="name"><span class="color-dot" style="background:${getProjectColor(id)}"></span><span id="pname-${id}">${p.name}</span></span>
+            <div class="actions">
+              <button class="btn-icon edit-p" data-id="${id}" title="수정">&#9998;</button>
+              <button class="btn-icon toggle-p" data-id="${id}" title="${p.active?'비활성화':'활성화'}">${p.active?'🚫':'✅'}</button>
+              <button class="btn-icon del-p" data-id="${id}" title="삭제">&#128465;</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`;
+  $('#addProjBtn').onclick = async () => {
+    const name = $('#newProjName').value.trim();
+    if (!name) return;
+    const exists = Object.values(DATA.projects).some(p => p.name === name);
+    if (exists) { showToast('이미 존재하는 프로젝트입니다'); return; }
+    await dbInsertProject({ name, active: true });
+    showToast('추가되었습니다');
+  };
+  $$('.edit-p').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      const nameEl = $(`#pname-${id}`);
+      const cur = DATA.projects[id].name;
+      nameEl.innerHTML = `<div class="edit-inline"><input value="${cur}" id="editP-${id}"><button class="btn btn-primary btn-sm" id="saveP-${id}">저장</button></div>`;
+      $(`#saveP-${id}`).onclick = async () => {
+        const newName = $(`#editP-${id}`).value.trim();
+        if (!newName) return;
+        await dbUpsertProject(id, { ...DATA.projects[id], name: newName });
+        showToast('수정되었습니다');
+      };
+    };
+  });
+  $$('.toggle-p').forEach(btn => {
+    btn.onclick = async () => {
+      const id = btn.dataset.id;
+      await dbUpsertProject(id, { ...DATA.projects[id], active: !DATA.projects[id].active });
+    };
+  });
+  $$('.del-p').forEach(btn => {
+    btn.onclick = () => {
+      const id = btn.dataset.id;
+      const hasTasks = Object.values(DATA.tasks).some(t => t.projectId === id);
+      if (hasTasks) {
+        showConfirm('이 프로젝트에 할당된 작업이 있습니다. 비활성화하시겠습니까?', async () => {
+          await dbUpsertProject(id, { ...DATA.projects[id], active: false });
+        });
+      } else {
+        showConfirm('삭제하시겠습니까?', async () => {
+          await dbDeleteProject(id);
+          showToast('삭제되었습니다');
+        });
+      }
+    };
+  });
+}
+
+let adminFilterWorker = '';
+let adminFilterProject = '';
+
+function renderAdminSchedules() {
+  const wrap = $('#adminContent');
+  const activeWorkers = Object.entries(DATA.workers).filter(([,w]) => w.active).sort((a,b) => a[1].name.localeCompare(b[1].name,'ko'));
+  const activeProjects = Object.entries(DATA.projects).filter(([,p]) => p.active);
+  let allTasks = Object.entries(DATA.tasks);
+  if (adminFilterWorker) allTasks = allTasks.filter(([,t]) => t.workerId === adminFilterWorker);
+  if (adminFilterProject) allTasks = allTasks.filter(([,t]) => t.projectId === adminFilterProject);
+  allTasks.sort((a,b) => (a[1].startDate||'').localeCompare(b[1].startDate||''));
+
+  wrap.innerHTML = `
+    <div class="filter-bar">
+      <label>작업자:</label>
+      <select id="fWorker">
+        <option value="">전체</option>
+        ${activeWorkers.map(([id,w]) => `<option value="${id}" ${adminFilterWorker===id?'selected':''}>${w.name}</option>`).join('')}
+      </select>
+      <label>프로젝트:</label>
+      <select id="fProject">
+        <option value="">전체</option>
+        ${activeProjects.map(([id,p]) => `<option value="${id}" ${adminFilterProject===id?'selected':''}>${p.name}</option>`).join('')}
+      </select>
+    </div>
+    ${allTasks.length === 0 ? '<div class="no-data">일정이 없습니다</div>' : `
+    <table><thead><tr><th>작업자</th><th>프로젝트</th><th>일감</th><th>시작일</th><th>종료일</th><th>근무일</th><th></th></tr></thead><tbody>
+    ${allTasks.map(([id,t]) => `<tr>
+      <td>${getWorkerName(t.workerId)}</td>
+      <td><span class="color-dot" style="background:${getProjectColor(t.projectId)}"></span>${getProjectName(t.projectId)}</td>
+      <td class="task-desc" title="${t.description||''}">${t.description||'-'}</td>
+      <td>${t.startDate||''}</td>
+      <td>${t.endDate||''}</td>
+      <td>${t.workingDays||0}</td>
+      <td>
+        <button class="btn-icon admin-edit-task" data-id="${id}" title="수정">&#9998;</button>
+        <button class="btn-icon admin-del-task" data-id="${id}" title="삭제">&#128465;</button>
+      </td>
+    </tr>`).join('')}
+    </tbody></table>`}
+    <div style="margin-top:16px">
+      <div class="gantt-wrap" id="adminGanttWrap"></div>
+    </div>`;
+
+  $('#fWorker').onchange = (e) => { adminFilterWorker = e.target.value; renderAdminSchedules(); };
+  $('#fProject').onchange = (e) => { adminFilterProject = e.target.value; renderAdminSchedules(); };
+
+  $$('.admin-edit-task').forEach(btn => {
+    btn.onclick = () => openAdminTaskModal(btn.dataset.id);
+  });
+  $$('.admin-del-task').forEach(btn => {
+    btn.onclick = () => showConfirm('이 작업을 삭제하시겠습니까?', async () => {
+      await dbDeleteTask(btn.dataset.id);
+      showToast('삭제되었습니다');
+    });
+  });
+
+  if (allTasks.length > 0) {
+    renderGantt(allTasks, document.getElementById('adminGanttWrap'), true);
+  }
+}
+
+function openAdminTaskModal(editId) {
+  const task = DATA.tasks[editId];
+  if (!task) return;
+  const activeProjects = Object.entries(DATA.projects).filter(([,p]) => p.active);
+  const activeWorkers = Object.entries(DATA.workers).filter(([,w]) => w.active).sort((a,b) => a[1].name.localeCompare(b[1].name,'ko'));
+  const html = `
+    <div class="form-group">
+      <label>작업자</label>
+      <select id="mWorker">
+        ${activeWorkers.map(([id,w]) => `<option value="${id}" ${task.workerId===id?'selected':''}>${w.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>프로젝트</label>
+      <select id="mProject">
+        ${activeProjects.map(([id,p]) => `<option value="${id}" ${task.projectId===id?'selected':''}>${p.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-group">
+      <label>일감 설명</label>
+      <textarea id="mDesc">${task.description||''}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>시작일</label>
+        <input type="date" id="mStart" value="${task.startDate}">
+      </div>
+      <div class="form-group">
+        <label>종료일</label>
+        <input type="date" id="mEnd" value="${task.endDate}">
+      </div>
+    </div>
+    <div class="working-days-display" id="mWorkDays">근무일수: ${task.workingDays}일</div>`;
+  const overlay = showModal('작업 수정 (관리자)', html, async (modal) => {
+    const workerId = modal.querySelector('#mWorker').value;
+    const projectId = modal.querySelector('#mProject').value;
+    const description = modal.querySelector('#mDesc').value.trim();
+    const startDate = modal.querySelector('#mStart').value;
+    const endDate = modal.querySelector('#mEnd').value;
+    if (!description) { showToast('일감 설명을 입력하세요'); return false; }
+    if (startDate > endDate) { showToast('종료일이 시작일보다 빠릅니다'); return false; }
+    const workingDays = countWorkingDays(startDate, endDate);
+    await dbUpsertTask(editId, { workerId, projectId, description, startDate, endDate, workingDays });
+    showToast('수정되었습니다');
+    return true;
+  });
+  const updateWD = () => {
+    const s = overlay.querySelector('#mStart').value;
+    const e = overlay.querySelector('#mEnd').value;
+    if (s && e && s <= e) {
+      overlay.querySelector('#mWorkDays').textContent = `근무일수: ${countWorkingDays(s,e)}일`;
+    }
+  };
+  overlay.querySelector('#mStart').onchange = updateWD;
+  overlay.querySelector('#mEnd').onchange = updateWD;
+}
+
+// ==================== INIT ====================
+async function init() {
+  if (dbReady) {
+    try {
+      await Promise.race([
+        initializeData(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 10000))
+      ]);
+    } catch (e) {
+      console.error('Supabase connection failed, falling back to localStorage:', e);
+      dbReady = false;
+      await initializeData();
+    }
+  } else {
+    await initializeData();
+  }
+  if (!dbReady) {
+    showToast('오프라인 모드 (localStorage)');
+  }
+  listenData(() => router());
+  window.addEventListener('hashchange', router);
+}
+
+init();
+</script>
+</body>
+</html>
