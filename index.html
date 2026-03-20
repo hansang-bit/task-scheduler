@@ -161,22 +161,30 @@ const ADMIN_NAME = '조한상';
 // Korean Holidays 2025-2026 (includes substitute holidays)
 const HOLIDAYS = {
   2025: [
-    '2025-01-01','2025-01-28','2025-01-29','2025-01-30',
-    '2025-03-01','2025-03-03',
-    '2025-05-05','2025-05-06','2025-06-06',
-    '2025-08-15',
-    '2025-10-03','2025-10-05','2025-10-06','2025-10-07','2025-10-08','2025-10-09',
-    '2025-12-25'
+    '2025-01-01',
+    '2025-01-27','2025-01-28','2025-01-29','2025-01-30', // 설 임시공휴일+연휴
+    '2025-03-01','2025-03-03',                           // 삼일절+대체
+    '2025-05-05','2025-05-06',                           // 어린이날+부처님오신날 대체
+    '2025-06-06',                                        // 현충일
+    '2025-08-15',                                        // 광복절
+    '2025-10-03',                                        // 개천절
+    '2025-10-05','2025-10-06','2025-10-07','2025-10-08', // 추석연휴+대체
+    '2025-10-09',                                        // 한글날
+    '2025-12-25'                                         // 크리스마스
   ],
   2026: [
-    '2026-01-01','2026-02-16','2026-02-17','2026-02-18',
-    '2026-03-01','2026-03-02',
-    '2026-05-05','2026-05-24','2026-05-25',
-    '2026-06-06','2026-06-08',
-    '2026-08-15','2026-08-17',
-    '2026-09-24','2026-09-25','2026-09-26','2026-09-28',
-    '2026-10-03','2026-10-05','2026-10-09',
-    '2026-12-25'
+    '2026-01-01',                                        // 신정
+    '2026-02-16','2026-02-17','2026-02-18',              // 설날연휴+대체
+    '2026-03-01','2026-03-02',                           // 삼일절+대체
+    '2026-05-05',                                        // 어린이날
+    '2026-05-24','2026-05-25',                           // 부처님오신날+대체
+    '2026-06-03',                                        // 지방선거일
+    '2026-06-06','2026-06-08',                           // 현충일+대체
+    '2026-08-15','2026-08-17',                           // 광복절+대체
+    '2026-09-24','2026-09-25','2026-09-26','2026-09-28', // 추석연휴+대체
+    '2026-10-03','2026-10-05',                           // 개천절+대체
+    '2026-10-09',                                        // 한글날
+    '2026-12-25'                                         // 크리스마스
   ]
 };
 const holidaySet = new Set([...(HOLIDAYS[2025]||[]), ...(HOLIDAYS[2026]||[])]);
@@ -840,13 +848,48 @@ function renderGantt(tasks, container, showWorkerLabel) {
       openTaskModal(tasks[row][0]);
     }
   };
-  // Cursor
+  // Tooltip
+  let tooltip = document.getElementById('gantt-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'gantt-tooltip';
+    tooltip.style.cssText = 'position:fixed;background:#1f2937;color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;line-height:1.6;pointer-events:none;z-index:9999;display:none;max-width:240px;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
+    document.body.appendChild(tooltip);
+  }
+
+  // Cursor + Tooltip
   canvas.onmousemove = (e) => {
     const rect = canvas.getBoundingClientRect();
     const my = (e.clientY - rect.top);
+    const mx = (e.clientX - rect.left);
     const row = Math.floor((my - HEADER_H) / ROW_H);
-    canvas.style.cursor = (row >= 0 && row < tasks.length) ? 'pointer' : 'default';
+    if (row >= 0 && row < tasks.length) {
+      canvas.style.cursor = 'pointer';
+      const [, t] = tasks[row];
+      const startCol = daysBetween(minD, t.startDate);
+      const endCol = daysBetween(minD, t.endDate);
+      const barX = startCol * COL_W;
+      const barW = (endCol - startCol + 1) * COL_W;
+      if (mx >= barX && mx <= barX + barW) {
+        tooltip.innerHTML = `
+          <div style="font-weight:600;margin-bottom:4px;">${getProjectName(t.projectId)}</div>
+          ${t.description ? `<div style="color:#d1d5db;">${t.description}</div>` : ''}
+          <div style="margin-top:4px;color:#9ca3af;font-size:11px;">${t.startDate} ~ ${t.endDate}</div>
+          <div style="color:#9ca3af;font-size:11px;">근무일 ${t.workingDays}일</div>`;
+        const tx = e.clientX + 12;
+        const ty = e.clientY - 10;
+        tooltip.style.left = (tx + 260 > window.innerWidth ? e.clientX - 260 : tx) + 'px';
+        tooltip.style.top = ty + 'px';
+        tooltip.style.display = 'block';
+      } else {
+        tooltip.style.display = 'none';
+      }
+    } else {
+      canvas.style.cursor = 'default';
+      tooltip.style.display = 'none';
+    }
   };
+  canvas.onmouseleave = () => { tooltip.style.display = 'none'; };
 }
 
 function var_border() { return '#e5e7eb'; }
