@@ -429,6 +429,18 @@ async function dbInsertTask(val) {
   return id;
 }
 
+// ==================== REFRESH HELPER ====================
+async function refreshPage() {
+  await fetchAllData();
+  const hash = location.hash || '#worker';
+  if (hash === '#admin') {
+    renderAdminSchedules();
+  } else {
+    renderTaskTable();
+    renderGantt();
+  }
+}
+
 // ==================== ROUTER ====================
 function router() {
   const hash = location.hash || '#login';
@@ -575,9 +587,7 @@ function renderTaskTable() {
     btn.onclick = () => showConfirm('이 작업을 삭제하시겠습니까?', async () => {
       await dbDeleteTask(btn.dataset.id);
       showToast('삭제되었습니다');
-      await fetchAllData();
-      renderTaskTable();
-      renderGantt();
+      await refreshPage();
     });
   });
 }
@@ -625,9 +635,7 @@ function openTaskModal(editId) {
       await dbInsertTask(data);
       showToast('추가되었습니다');
     }
-    await fetchAllData();
-    renderTaskTable();
-    renderGantt();
+    await refreshPage();
     return true;
   });
   const updateWD = () => {
@@ -1147,6 +1155,7 @@ function renderAdminSchedules() {
     btn.onclick = () => showConfirm('이 작업을 삭제하시겠습니까?', async () => {
       await dbDeleteTask(btn.dataset.id);
       showToast('삭제되었습니다');
+      await refreshPage();
     });
   });
 
@@ -1199,6 +1208,7 @@ function openAdminTaskModal(editId) {
     const workingDays = countWorkingDays(startDate, endDate);
     await dbUpsertTask(editId, { workerId, projectId, description, startDate, endDate, workingDays });
     showToast('수정되었습니다');
+    await refreshPage();
     return true;
   });
   const updateWD = () => {
