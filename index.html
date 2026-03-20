@@ -575,6 +575,8 @@ function renderTaskTable() {
     btn.onclick = () => showConfirm('이 작업을 삭제하시겠습니까?', async () => {
       await dbDeleteTask(btn.dataset.id);
       showToast('삭제되었습니다');
+      await fetchAllData();
+      renderGantt();
     });
   });
 }
