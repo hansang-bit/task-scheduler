@@ -664,8 +664,15 @@ function renderGantt(tasks, container, showWorkerLabel) {
   // Pad range
   minD = addDays(minD, -3);
   maxD = addDays(maxD, 7);
-  const totalDays = daysBetween(minD, maxD) + 1;
+  let totalDays = daysBetween(minD, maxD) + 1;
   const labelW = showWorkerLabel ? 80 : 0;
+  // 화면 폭만큼 날짜 채우기
+  const availW = container.offsetWidth - labelW;
+  const minDaysForView = availW > 0 ? Math.ceil(availW / COL_W) : 0;
+  if (minDaysForView > totalDays) {
+    maxD = addDays(minD, minDaysForView - 1);
+    totalDays = minDaysForView;
+  }
   const canvasW = totalDays * COL_W;
   const canvasH = HEADER_H + tasks.length * ROW_H;
   const dpr = window.devicePixelRatio || 1;
