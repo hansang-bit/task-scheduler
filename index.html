@@ -461,8 +461,9 @@ function showModal(title, contentHTML, onSave) {
   overlay.innerHTML = `<div class="modal"><h3>${title}</h3><div class="modal-body">${contentHTML}</div><div class="form-actions"><button class="btn btn-ghost modal-cancel">취소</button><button class="btn btn-primary modal-save">저장</button></div></div>`;
   document.body.appendChild(overlay);
   overlay.querySelector('.modal-cancel').onclick = () => overlay.remove();
-  overlay.querySelector('.modal-save').onclick = () => {
-    if (onSave(overlay)) overlay.remove();
+  overlay.querySelector('.modal-save').onclick = async () => {
+    const result = await onSave(overlay);
+    if (result) overlay.remove();
   };
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
   return overlay;
@@ -612,6 +613,8 @@ function openTaskModal(editId) {
       await dbInsertTask(data);
       showToast('추가되었습니다');
     }
+    await fetchAllData();
+    renderGantt();
     return true;
   });
   const updateWD = () => {
